@@ -124,7 +124,7 @@ struct uml_pt_regs {
 #define UPT_IS_USER(r)		((r)->is_user)
 
 /* UPT_SYSCALL_NR / RET are already defined above */
-#define UPT_RESTART_SYSCALL(r)	UPT_SYSCALL_NR(r)
+#define UPT_RESTART_SYSCALL(r)	(UPT_SYSCALL_NR(r))
 
 extern int arch_init_registers(int pid);
 

@@ -36,7 +36,17 @@
 #define profile_pc(regs) PT_REGS_IP(regs)
 
 /* On arm64, signal restarts use a special trampoline */
-#define UPT_RESTART_SYSCALL(r)	(UPT_SYSCALL_NR(r))
+//#define UPT_RESTART_SYSCALL(r)	(UPT_SYSCALL_NR(r))
+/*
+./arch/arm64/um/asm/ptrace.h:39:9: warning: 'UPT_RESTART_SYSCALL' redefined
+   39 | #define UPT_RESTART_SYSCALL(r)  (UPT_SYSCALL_NR(r))
+      |         ^~~~~~~~~~~~~~~~~~~
+In file included from ./arch/um/include/asm/ptrace-generic.h:11,
+                 from ./arch/arm64/um/asm/ptrace.h:8:
+./arch/arm64/um/shared/sysdep/ptrace.h:127:9: note: this is the location of the previous definition
+  127 | #define UPT_RESTART_SYSCALL(r)  UPT_SYSCALL_NR(r)
+      |         ^~~~~~~~~~~~~~~~~~~
+*/
 
 #define PT_REGS_SET_SYSCALL_RETURN(r, res) (UPT_X0(&(r)->regs) = (res))
 
