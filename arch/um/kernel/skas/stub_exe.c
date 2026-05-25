@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <sys/ptrace.h>
 #include <sys/prctl.h>
 #include <sys/fcntl.h>
@@ -179,9 +180,11 @@ noinline static void real_init(void)
 #ifdef __i386__
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_set_thread_area,
 				 2, 0),
-#else
+#elif defined(__x86_64__)
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_arch_prctl,
 				 2, 0),
+#else
+			/* arm64 and others: no arch_prctl / set_thread_area needed */
 #endif
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rt_sigreturn,
 				 1, 0),

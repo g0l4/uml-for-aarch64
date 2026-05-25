@@ -29,9 +29,14 @@ HEADER_ARCH 	:= $(SUBARCH)
 ifneq ($(filter $(SUBARCH),x86 x86_64 i386),)
 	HEADER_ARCH := x86
 endif
+ifeq ($(SUBARCH),arm64)
+	HEADER_ARCH := arm64
+endif
 
 ifdef CONFIG_64BIT
+ifneq ($(HEADER_ARCH),arm64)
 	KBUILD_CFLAGS += -mcmodel=large
+endif
 endif
 
 HOST_DIR := arch/$(HEADER_ARCH)
@@ -76,10 +81,19 @@ USER_CFLAGS = $(patsubst $(KERNEL_DEFINES),,$(patsubst -I%,,$(KBUILD_CFLAGS))) \
 #This will adjust *FLAGS accordingly to the platform.
 include $(srctree)/$(ARCH_DIR)/Makefile-os-Linux
 
+ifeq ($(HEADER_ARCH),arm64)
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/um/include
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include/uapi
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include/generated
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include/generated/uapi
+KBUILD_CPPFLAGS += -I$(objtree)/$(HOST_DIR)/include/generated
+KBUILD_CPPFLAGS += -I$(objtree)/$(HOST_DIR)/include/generated/uapi
+else
 KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include \
 		   -I$(srctree)/$(HOST_DIR)/include/uapi \
 		   -I$(objtree)/$(HOST_DIR)/include/generated \
 		   -I$(objtree)/$(HOST_DIR)/include/generated/uapi
+endif
 
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common

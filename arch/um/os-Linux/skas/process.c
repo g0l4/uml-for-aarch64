@@ -17,6 +17,8 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
+#include <linux/elf.h>
 #include <asm/unistd.h>
 #include <as-layout.h>
 #include <init.h>
@@ -82,6 +84,15 @@ static const char *ptrace_reg_name(int idx)
 	R(ES);
 	R(GS);
 	R(ORIG_AX);
+	#elif defined(__aarch64__)
+		R(X0); R(X1); R(X2); R(X3); R(X4);
+		R(X5); R(X6); R(X7); R(X8); R(X9);
+		R(X10); R(X11); R(X12); R(X13); R(X14);
+		R(X15); R(X16); R(X17); R(X18); R(X19);
+		R(X20); R(X21); R(X22); R(X23); R(X24);
+		R(X25); R(X26); R(X27); R(X28); R(X29);
+		R(X30);
+		R(SP); R(PC); R(PSTATE);
 #endif
 	}
 	return "";

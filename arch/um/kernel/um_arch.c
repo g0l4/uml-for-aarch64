@@ -31,6 +31,7 @@
 #include <init.h>
 #include <kern.h>
 #include <kern_util.h>
+#include <skas.h>
 #include <mem_user.h>
 #include <os.h>
 

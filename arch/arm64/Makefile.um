@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# UML-on-arm64 architecture flags
+#
+
+START := 0x40000000
+
+KBUILD_CFLAGS += -fno-builtin
+
+CHECKFLAGS  += -m64 -D__aarch64__
+KBUILD_AFLAGS += -mabi=lp64
+KBUILD_CPPFLAGS += -mabi=lp64
+
+ELF_ARCH := aarch64
+ELF_FORMAT := elf64-littleaarch64
+
+LINK-y += -mabi=lp64
+
+LINK-$(CONFIG_LD_SCRIPT_DYN_RPATH) += -Wl,-rpath,/lib

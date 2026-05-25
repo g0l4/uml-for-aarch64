@@ -18,7 +18,9 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <asm/ldt.h>
+#endif
 #include <asm/unistd.h>
 #include <init.h>
 #include <os.h>

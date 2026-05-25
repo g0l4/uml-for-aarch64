@@ -56,10 +56,12 @@ long arch_ptrace(struct task_struct *child, long request,
 		ret = poke_user(child, addr, data);
 		break;
 
+#ifdef PTRACE_SYSEMU
 	case PTRACE_SYSEMU:
 	case PTRACE_SYSEMU_SINGLESTEP:
 		ret = -EIO;
 		break;
+#endif
 
 #ifdef PTRACE_GETREGS
 	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
@@ -91,13 +93,16 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 	}
 #endif
+#ifdef PTRACE_GET_THREAD_AREA
 	case PTRACE_GET_THREAD_AREA:
 		ret = ptrace_get_thread_area(child, addr, vp);
 		break;
-
+#endif
+#ifdef PTRACE_SET_THREAD_AREA
 	case PTRACE_SET_THREAD_AREA:
 		ret = ptrace_set_thread_area(child, addr, vp);
 		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
