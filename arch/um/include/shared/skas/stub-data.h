@@ -70,7 +70,11 @@ struct stub_data {
 	struct stub_data_arch arch_data;
 
 	/* Stack for our signal handlers and for calling into . */
+#ifdef __aarch64__
+	unsigned char sigstack[2 * UM_KERN_PAGE_SIZE] __aligned(UM_KERN_PAGE_SIZE);
+#else
 	unsigned char sigstack[UM_KERN_PAGE_SIZE] __aligned(UM_KERN_PAGE_SIZE);
+#endif
 };
 
 #endif

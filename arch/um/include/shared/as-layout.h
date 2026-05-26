@@ -23,7 +23,15 @@
 #define STUB_START stub_start
 #define STUB_CODE STUB_START
 #define STUB_DATA (STUB_CODE + UM_KERN_PAGE_SIZE)
+/*
+ * Arm64 needs a larger signal stack (MINSIGSTKSZ=5120 vs 4096 for one page).
+ * Use 2 pages for the sigstack plus 1 page for the fixed struct data.
+ */
+#ifdef __aarch64__
+#define STUB_DATA_PAGES 3
+#else
 #define STUB_DATA_PAGES 2
+#endif
 #define STUB_SIZE ((1 + STUB_DATA_PAGES) * UM_KERN_PAGE_SIZE)
 #define STUB_END (STUB_START + STUB_SIZE)
 

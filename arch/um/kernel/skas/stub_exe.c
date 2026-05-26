@@ -184,7 +184,13 @@ noinline static void real_init(void)
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_arch_prctl,
 				 2, 0),
 #else
-			/* arm64 and others: no arch_prctl / set_thread_area needed */
+			/*
+			 * Arm64 (and others) have no arch_prctl /
+			 * set_thread_area.  Insert a NOP (unconditional
+			 * jump with offset 0) to keep the instruction count
+			 * and forward-jump offsets identical to x86_64.
+			 */
+			BPF_JUMP(BPF_JMP | BPF_JA, 0, 0, 0),
 #endif
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rt_sigreturn,
 				 1, 0),
@@ -200,10 +206,14 @@ noinline static void real_init(void)
 			.filter = filter,
 		};
 
-		if (stub_syscall3(__NR_seccomp, SECCOMP_SET_MODE_FILTER,
-				  SECCOMP_FILTER_FLAG_TSYNC,
-				  (unsigned long)&prog) != 0)
-			stub_syscall1(__NR_exit, 21);
+	{
+			long __seccomp_ret = stub_syscall3(__NR_seccomp,
+				SECCOMP_SET_MODE_FILTER,
+				SECCOMP_FILTER_FLAG_TSYNC,
+				(unsigned long)&prog);
+			if (__seccomp_ret != 0)
+				stub_syscall1(__NR_exit, (int)(-__seccomp_ret) & 0xff);
+		}
 
 		/* Fall through, the exit syscall will cause SIGSYS */
 	} else {

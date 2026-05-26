@@ -157,13 +157,39 @@ static __always_inline void *get_stub_data(void)
 
 /*
  * Jump to the stub function with a known stack.
+ *
+ * Arm64 requires a valid stack VMA at the target sp.  The stub
+ * binary loads at a low address (0x400000) but the kernel places
+ * the initial stack VMA at the top of the address space.  Moving
+ * sp across the entire VA space causes SIGSEGV because the kernel
+ * refuses to grow the stack VMA that far.  Allocate a fresh
+ * MAP_GROWSDOWN region first.
  */
 #define stub_start(fn)							\
-	asm volatile (							\
-		"mov sp, %0\n"						\
-		"blr %1\n"						\
-		:: "r" ((unsigned long)get_stub_data() + STUB_SIZE),	\
-		   "r" (&fn))
+	do {								\
+		unsigned long __sp, __sp_base;				\
+		register long __x8 asm("x8") = __NR_mmap;		\
+		register long __x0 asm("x0") = 0;			\
+		register long __x1 asm("x1") = STUB_SIZE;		\
+		register long __x2 asm("x2") =				\
+			PROT_READ | PROT_WRITE;				\
+		register long __x3 asm("x3") =				\
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN;	\
+		register long __x4 asm("x4") = -1;			\
+		register long __x5 asm("x5") = 0;			\
+		asm volatile ("svc #0"					\
+			: "+r" (__x0)					\
+			: "r" (__x8), "r" (__x1), "r" (__x2),		\
+			  "r" (__x3), "r" (__x4), "r" (__x5)		\
+			: "x9","x10","x11","x12","x13","x14","x15",	\
+			  "x16","x17","cc","memory");			\
+		__sp_base = __x0;					\
+		__sp = __sp_base + STUB_SIZE;				\
+		asm volatile (						\
+			"mov sp, %0\n"					\
+			"blr %1\n"					\
+			:: "r" (__sp), "r" (&(fn)));			\
+	} while (0)
 
 static __always_inline void
 stub_seccomp_restore_state(struct stub_data_arch *arch)

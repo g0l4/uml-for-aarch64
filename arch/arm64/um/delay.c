@@ -7,20 +7,27 @@
 void __delay(unsigned long loops)
 {
 	/*
-	 * Busy-wait loop for very short delays.
-	 * UML runs as a host process; use the arch-provided yield.
+	 * Busy-wait loop — UML runs as a host process, so we spin
+	 * rather than reading a hardware cycle counter.
 	 */
-	asm volatile("yield" ::: "memory");
+	asm volatile(
+		"1: subs %0, %0, #1\n"
+		"   b.ne 1b\n"
+		: "+r" (loops)
+		:
+		: "cc", "memory"
+	);
 }
 EXPORT_SYMBOL(__delay);
 
 void __udelay(unsigned long usecs)
 {
 	/*
-	 * On UML, delay via the host OS scheduling.
-	 * The UML time subsystem provides the actual delay mechanism.
+	 * Approximate microsecond delay: scale by a rough estimate
+	 * of loop iterations per microsecond.  The BogoMIPS calibration
+	 * will refine this at boot.
 	 */
-	unsigned long loops = usecs * 10;
+	unsigned long loops = usecs * 100;
 	__delay(loops);
 }
 EXPORT_SYMBOL(__udelay);
