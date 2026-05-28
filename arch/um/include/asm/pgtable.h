@@ -242,7 +242,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 		if (--nr == 0)
 			break;
 		ptep++;
-		pte = __pte(pte_val(pte) + (nr << PFN_PTE_SHIFT));
+		pte = __pte(pte_val(pte) + (1UL << PFN_PTE_SHIFT));
 	}
 
 	um_tlb_mark_sync(mm, addr, addr + length);

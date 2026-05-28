@@ -649,11 +649,21 @@ void userspace(struct uml_pt_regs *regs)
 			regs->is_user = 1;
 
 			/* Fill in ORIG_RAX and extract fault information */
+#ifndef __aarch64__
 			PT_SYSCALL_NR(regs->gp) = si->si_syscall;
+#endif
 			if (sig == SIGSEGV) {
 				mcontext_t *mcontext = (void *)&proc_data->sigstack[proc_data->mctx_offset];
 
 				GET_FAULTINFO_FROM_MC(regs->faultinfo, mcontext);
+#ifdef __aarch64__
+				if (!regs->faultinfo.error_code) {
+					regs->faultinfo.addr =
+						(unsigned long)si->si_addr;
+					regs->faultinfo.trap_no =
+						ARM64_ESR_EC_DABT_EL0;
+				}
+#endif
 			}
 		} else {
 			int pid = mm_id->pid;
@@ -794,9 +804,18 @@ void userspace(struct uml_pt_regs *regs)
 			}
 			interrupt_end();
 
-			/* Avoid -ERESTARTSYS handling in host */
+			/*
+			 * Avoid -ERESTARTSYS handling in host.
+			 *
+			 * arm64 has no separate orig-x8 slot in the saved
+			 * signal context.  PT_SYSCALL_NR() is the live x8
+			 * register there, and user code may reuse it across
+			 * adjacent SVC instructions.
+			 */
+#ifndef __aarch64__
 			if (PT_SYSCALL_NR_OFFSET != PT_SYSCALL_RET_OFFSET)
 				PT_SYSCALL_NR(regs->gp) = -1;
+#endif
 		}
 	}
 }

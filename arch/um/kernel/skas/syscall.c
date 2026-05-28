@@ -18,19 +18,27 @@ void handle_syscall(struct uml_pt_regs *r)
 {
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);
 	int syscall;
+	unsigned long arg1, arg2, arg3, arg4, arg5, arg6;
 
-	/* Initialize the syscall number and default return value. */
+	/* Initialize the syscall number. */
 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
-	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
 
 	if (syscall_trace_enter(regs))
-		goto out;
+		goto out_set_errno;
 
 	/* Do the seccomp check after ptrace; failures should be fast. */
 	if (secure_computing() == -1)
 		goto out;
 
 	syscall = UPT_SYSCALL_NR(r);
+	arg1 = UPT_SYSCALL_ARG1(&regs->regs);
+	arg2 = UPT_SYSCALL_ARG2(&regs->regs);
+	arg3 = UPT_SYSCALL_ARG3(&regs->regs);
+	arg4 = UPT_SYSCALL_ARG4(&regs->regs);
+	arg5 = UPT_SYSCALL_ARG5(&regs->regs);
+	arg6 = UPT_SYSCALL_ARG6(&regs->regs);
+
+	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
 
 	/*
 	 * If no time passes, then sched_yield may not actually yield, causing
@@ -45,12 +53,8 @@ void handle_syscall(struct uml_pt_regs *r)
 	if (syscall >= 0 && syscall < __NR_syscalls) {
 		unsigned long ret;
 
-		ret = (*sys_call_table[syscall])(UPT_SYSCALL_ARG1(&regs->regs),
-						 UPT_SYSCALL_ARG2(&regs->regs),
-						 UPT_SYSCALL_ARG3(&regs->regs),
-						 UPT_SYSCALL_ARG4(&regs->regs),
-						 UPT_SYSCALL_ARG5(&regs->regs),
-						 UPT_SYSCALL_ARG6(&regs->regs));
+		ret = (*sys_call_table[syscall])(arg1, arg2, arg3, arg4,
+						 arg5, arg6);
 
 		PT_REGS_SET_SYSCALL_RETURN(regs, ret);
 
@@ -71,4 +75,9 @@ void handle_syscall(struct uml_pt_regs *r)
 
 out:
 	syscall_trace_leave(regs);
+	return;
+
+out_set_errno:
+	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
+	goto out;
 }

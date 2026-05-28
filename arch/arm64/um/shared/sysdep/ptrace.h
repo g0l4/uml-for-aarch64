@@ -56,7 +56,7 @@
 #define UPT_PSTATE(r)	REGS_PSTATE((r)->gp)
 
 /* Syscall convention: NR in x8, return in x0 */
-#define UPT_SYSCALL_NR(r)	REGS_X8((r)->gp)
+#define UPT_SYSCALL_NR(r)	((r)->syscall)
 #define UPT_SYSCALL_RET(r)	REGS_X0((r)->gp)
 
 /* Syscall arguments (x0-x5) for restart */
@@ -123,8 +123,8 @@ struct uml_pt_regs {
 #define UPT_FAULTINFO(r)	(&(r)->faultinfo)
 #define UPT_IS_USER(r)		((r)->is_user)
 
-/* UPT_SYSCALL_NR / RET are already defined above */
-#define UPT_RESTART_SYSCALL(r)	(UPT_SYSCALL_NR(r))
+/* Re-run the trapped SVC instruction. */
+#define UPT_RESTART_SYSCALL(r)	(UPT_IP(r) -= 4)
 
 extern int arch_init_registers(int pid);
 
