@@ -29,6 +29,7 @@
 #endif
 
 /* For arm64, these functions don't exist; provide stubs */
+struct user_desc;
 #ifndef __x86_64__
 static inline int ptrace_get_thread_area(struct task_struct *child, int idx,
 					 struct user_desc __user *user_desc)
