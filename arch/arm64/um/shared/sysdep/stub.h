@@ -201,6 +201,12 @@ stub_seccomp_restore_state(struct stub_data_arch *arch)
 	arch->sync = 0;
 }
 
+static __always_inline void
+stub_seccomp_save_state(struct stub_data_arch *arch)
+{
+	asm volatile ("mrs %0, tpidr_el0" : "=r" (arch->tpidr_el0));
+}
+
 extern void stub_segv_handler(int, siginfo_t *, void *);
 extern void stub_syscall_handler(void);
 extern void stub_signal_interrupt(int, siginfo_t *, void *);

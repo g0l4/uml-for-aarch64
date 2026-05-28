@@ -122,7 +122,8 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 
 int arch_set_tls(struct task_struct *new, unsigned long tls)
 {
-	/* Arm64 stores TLS in tpidr_el0, managed by ptrace */
+	new->thread.arch.tpidr_el0 = tls;
+	new->thread.regs.regs.tpidr_el0 = tls;
 	return 0;
 }
 
@@ -130,3 +131,8 @@ void clear_flushed_tls(struct task_struct *task)
 {
 }
 
+void arch_flush_thread(struct arch_thread *thread)
+{
+	thread->tpidr_el0 = 0;
+	current->thread.regs.regs.tpidr_el0 = 0;
+}

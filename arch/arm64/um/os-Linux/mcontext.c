@@ -94,6 +94,7 @@ int get_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
 	mcontext = (void *)&data->sigstack[data->mctx_offset];
 
 	get_regs_from_mc(regs, mcontext);
+	regs->tpidr_el0 = data->arch_data.tpidr_el0;
 
 	fpstate_stub = get_fpstate(data, mcontext, &fp_size);
 	if (!fpstate_stub) {
@@ -130,17 +131,16 @@ int set_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
 
 	get_mc_from_regs(regs, mcontext, single_stepping);
 
+	if (data->arch_data.tpidr_el0 != regs->tpidr_el0) {
+		data->arch_data.tpidr_el0 = regs->tpidr_el0;
+		data->arch_data.sync |= STUB_SYNC_TPIDR;
+	}
+
 	fpstate_stub = get_fpstate(data, mcontext, &fp_size);
 	if (!fpstate_stub)
 		return 0;
 
 	memcpy(fpstate_stub, &regs->fp, fp_size);
-
-	/* Sync tpidr_el0 if it changed */
-	{
-		/* tpidr_el0 is used for TLS; sync via stub_data_arch */
-		data->arch_data.tpidr_el0 = 0; /* read-only from UML side */
-	}
 
 	return 0;
 }

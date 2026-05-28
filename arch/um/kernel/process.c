@@ -154,8 +154,8 @@ int copy_thread(struct task_struct * p, const struct kernel_clone_args *args)
 	p->thread = (struct thread_struct) INIT_THREAD;
 
 	if (!args->fn) {
-	  	memcpy(&p->thread.regs.regs, current_pt_regs(),
-		       sizeof(p->thread.regs.regs));
+		memcpy(&p->thread.regs, current_pt_regs(),
+		       sizeof(p->thread.regs) + host_fp_size);
 		PT_REGS_SET_SYSCALL_RETURN(&p->thread.regs, 0);
 		if (sp != 0)
 			REGS_SP(p->thread.regs.regs.gp) = sp;

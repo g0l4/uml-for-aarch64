@@ -113,6 +113,7 @@ struct uml_pt_regs {
 	struct faultinfo faultinfo;
 	long syscall;
 	int is_user;
+	unsigned long tpidr_el0;
 
 	/* Dynamically sized SIMD/SVE state */
 	unsigned long fp[];

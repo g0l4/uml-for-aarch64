@@ -23,6 +23,8 @@ static_assert(sizeof(struct stub_data) == STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 static spinlock_t mm_list_lock;
 static struct list_head mm_list;
 
+#define STUB_DATA_ORDER get_order(sizeof(struct stub_data))
+
 struct mutex *__get_turnstile(struct mm_id *mm_id)
 {
 	struct mm_context *ctx = container_of(mm_id, struct mm_context, id);
@@ -49,7 +51,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	mutex_init(&mm->context.turnstile);
 	spin_lock_init(&mm->context.sync_tlb_lock);
 
-	stack = __get_free_pages(GFP_KERNEL | __GFP_ZERO, ilog2(STUB_DATA_PAGES));
+	stack = __get_free_pages(GFP_KERNEL | __GFP_ZERO, STUB_DATA_ORDER);
 	if (stack == 0)
 		goto out;
 
@@ -72,7 +74,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	return 0;
 
  out_free:
-	free_pages(new_id->stack, ilog2(STUB_DATA_PAGES));
+	free_pages(new_id->stack, STUB_DATA_ORDER);
  out:
 	return ret;
 }
@@ -106,7 +108,7 @@ void destroy_context(struct mm_struct *mm)
 	if (using_seccomp && mmu->id.sock)
 		os_close_file(mmu->id.sock);
 
-	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
+	free_pages(mmu->id.stack, STUB_DATA_ORDER);
 }
 
 static irqreturn_t mm_sigchld_irq(int irq, void* dev)

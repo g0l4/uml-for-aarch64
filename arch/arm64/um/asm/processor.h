@@ -16,19 +16,20 @@ struct arch_thread {
 	unsigned long debugregs[8];
 	int debugregs_seq;
 	struct faultinfo faultinfo;
+	unsigned long tpidr_el0;
 };
 
 #define INIT_ARCH_THREAD { .debugregs = { [0 ... 7] = 0 }, \
 			   .debugregs_seq = 0, \
-			   .faultinfo = { 0, 0, 0 } }
+			   .faultinfo = { 0, 0, 0 }, \
+			   .tpidr_el0 = 0 }
 
-static inline void arch_flush_thread(struct arch_thread *thread)
-{
-}
+void arch_flush_thread(struct arch_thread *thread);
 
 static inline void arch_copy_thread(struct arch_thread *from,
 				    struct arch_thread *to)
 {
+	to->tpidr_el0 = from->tpidr_el0;
 }
 
 #define STACKSLOTS_PER_LINE 4

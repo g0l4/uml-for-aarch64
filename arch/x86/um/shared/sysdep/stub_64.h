@@ -151,4 +151,9 @@ stub_seccomp_restore_state(struct stub_data_arch *arch)
 	arch->sync = 0;
 }
 
+static __always_inline void
+stub_seccomp_save_state(struct stub_data_arch *arch)
+{
+}
+
 #endif
