@@ -1,3 +1,26 @@
+# uml-for-aarch64
+
+> [!WARNING]
+> This project is completely vibe-coded. Use with caution.
+
+UML (User Mode Linux) port for arm64 (aarch64).
+Only builds for `ARM64 User Mode` is graranteed.
+
+## Build Instructions
+Compile: `make ARCH=um SUBARCH=arm64 <command>`
+
+Cross-compile: `make ARCH=um SUBARCH=arm64 CROSS_COMPILE=<compiler-prefix> <command>`
+
+e.g.:
+```
+make ARCH=um SUBARCH=arm64 CROSS_COMPILE=aarch64-gnu-linux-
+```
+
+## Documents
+[UML HowTo V2](https://www.kernel.org/doc/html/v7.0/virt/uml/user_mode_linux_howto_v2.html)
+
+## Original `README`
+```
 Linux kernel
 ============
 
@@ -166,3 +189,4 @@ Communication and Support
 * Bugzilla: https://bugzilla.kernel.org/
 * MAINTAINERS file: Lists subsystem maintainers and mailing lists
 * Email Clients: Documentation/process/email-clients.rst
+```
