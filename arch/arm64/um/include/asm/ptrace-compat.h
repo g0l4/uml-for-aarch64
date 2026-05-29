@@ -2,13 +2,6 @@
 #ifndef __ASM_UM_PTRACE_COMPAT_ARM64_H
 #define __ASM_UM_PTRACE_COMPAT_ARM64_H
 
-/*
- * Arm64 does not have PTRACE_GETREGS/SETREGS/SYSEMU/GET_THREAD_AREA/SET_THREAD_AREA.
- * Define unique stub values so the UML generic code compiles.
- * The non-seccomp path is not supported on arm64 and
- * using_seccomp is always forced to 1.
- */
-
 #ifndef PTRACE_GETREGS
 #define PTRACE_GETREGS 0x4100
 #endif
@@ -16,10 +9,10 @@
 #define PTRACE_SETREGS 0x4200
 #endif
 #ifndef PTRACE_SYSEMU
-#define PTRACE_SYSEMU 0x4300
+#define PTRACE_SYSEMU 31
 #endif
 #ifndef PTRACE_SYSEMU_SINGLESTEP
-#define PTRACE_SYSEMU_SINGLESTEP 0x4400
+#define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
 #ifndef PTRACE_GET_THREAD_AREA
 #define PTRACE_GET_THREAD_AREA 0x4500

@@ -129,11 +129,6 @@ struct uml_pt_regs {
 
 extern int arch_init_registers(int pid);
 
-/*
- * X86-specific ptrace constants not present on arm64.
- * Provide stub values so UML generic code compiles.
- * Arm64 UML always uses seccomp mode; non-seccomp paths are never taken.
- */
 #ifndef PTRACE_GETREGS
 #define PTRACE_GETREGS 0x4100
 #endif
@@ -141,10 +136,10 @@ extern int arch_init_registers(int pid);
 #define PTRACE_SETREGS 0x4200
 #endif
 #ifndef PTRACE_SYSEMU
-#define PTRACE_SYSEMU 0x4300
+#define PTRACE_SYSEMU 31
 #endif
 #ifndef PTRACE_SYSEMU_SINGLESTEP
-#define PTRACE_SYSEMU_SINGLESTEP 0x4400
+#define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
 #ifndef PTRACE_GET_THREAD_AREA
 #define PTRACE_GET_THREAD_AREA 0x4500

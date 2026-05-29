@@ -101,10 +101,11 @@ static const char *ptrace_reg_name(int idx)
 static int ptrace_dump_regs(int pid)
 {
 	unsigned long regs[MAX_REG_NR];
-	int i;
+	int i, err;
 
-	if (ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
-		return -errno;
+	err = ptrace_getregs(pid, regs);
+	if (err)
+		return err;
 
 	printk(UM_KERN_ERR "Stub registers -\n");
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
@@ -687,9 +688,10 @@ void userspace(struct uml_pt_regs *regs)
 			 * fail.  In this case, there is nothing to do but
 			 * just kill the process.
 			 */
-			if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp)) {
+			err = ptrace_set_thread_state(pid, regs);
+			if (err) {
 				printk(UM_KERN_ERR "%s - ptrace set regs failed, errno = %d\n",
-				       __func__, errno);
+				       __func__, -err);
 				fatal_sigsegv();
 			}
 
@@ -718,9 +720,10 @@ void userspace(struct uml_pt_regs *regs)
 			}
 
 			regs->is_user = 1;
-			if (ptrace(PTRACE_GETREGS, pid, 0, regs->gp)) {
-				printk(UM_KERN_ERR "%s - PTRACE_GETREGS failed, errno = %d\n",
-				       __func__, errno);
+			err = ptrace_get_thread_state(pid, regs);
+			if (err) {
+				printk(UM_KERN_ERR "%s - ptrace get regs failed, errno = %d\n",
+				       __func__, -err);
 				fatal_sigsegv();
 			}
 

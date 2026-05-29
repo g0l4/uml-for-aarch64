@@ -4,9 +4,6 @@
 #include <sys/ptrace.h>
 #include <sys/uio.h>
 #include <elf.h>
-#ifndef NT_ARM_FPSIMD
-#define NT_ARM_FPSIMD 0x402
-#endif
 #include <longjmp.h>
 #include <sysdep/ptrace_user.h>
 #include <registers.h>
@@ -30,10 +27,20 @@ int get_fp_registers(int pid, unsigned long *regs)
 
 int put_fp_registers(int pid, unsigned long *regs)
 {
+	unsigned long len = host_fp_size;
 	struct iovec iov = {
 		.iov_base = regs,
-		.iov_len = host_fp_size,
 	};
+
+	if (ptrace_regset == NT_ARM_SVE) {
+		struct user_sve_header *sve = (void *)regs;
+
+		if (sve->size > host_fp_size)
+			return -ENOSPC;
+		len = sve->size;
+	}
+
+	iov.iov_len = len;
 
 	if (ptrace(PTRACE_SETREGSET, pid, ptrace_regset, &iov) < 0)
 		return -errno;
@@ -52,11 +59,11 @@ int arch_init_registers(int pid)
 	if (iov.iov_base == MAP_FAILED)
 		return -ENOMEM;
 
-	/* Try SVE first (NT_ARM_SVE), fall back to FPSIMD (NT_ARM_FPSIMD) */
+	/* Try SVE first, fall back to the FPSIMD regset. */
 	ptrace_regset = NT_ARM_SVE;
 	ret = ptrace(PTRACE_GETREGSET, pid, ptrace_regset, &iov);
 	if (ret) {
-		ptrace_regset = NT_ARM_FPSIMD;
+		ptrace_regset = NT_PRFPREG;
 		iov.iov_len = 2 * 1024 * 1024;
 		ret = ptrace(PTRACE_GETREGSET, pid, ptrace_regset, &iov);
 		if (ret)

@@ -10,7 +10,7 @@
 #include <sys/uio.h>
 #include <linux/elf.h>
 #include <sysdep/ptrace.h>
-#include <sysdep/ptrace_user.h>
+#include <ptrace_user.h>
 #include <registers.h>
 #include <stdlib.h>
 
@@ -23,19 +23,9 @@ int init_pid_registers(int pid)
 {
 	int err;
 
-#ifdef PTRACE_GETREGS
-	err = ptrace(PTRACE_GETREGS, pid, 0, exec_regs);
-#else
-	{
-		struct iovec iov = {
-			.iov_base = exec_regs,
-			.iov_len = MAX_REG_OFFSET,
-		};
-		err = ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov);
-	}
-#endif
+	err = ptrace_getregs(pid, exec_regs);
 	if (err < 0)
-		return -errno;
+		return err;
 
 	err = arch_init_registers(pid);
 	if (err < 0)

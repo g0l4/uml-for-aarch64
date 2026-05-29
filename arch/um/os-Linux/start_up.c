@@ -145,6 +145,7 @@ static void stop_ptraced_child(int pid, int exitcode)
 static void __init check_sysemu(void)
 {
 	int pid, n, status, count=0;
+	int err;
 
 	os_info("Checking syscall emulation for ptrace...");
 	pid = start_ptraced_child();
@@ -168,9 +169,8 @@ static void __init check_sysemu(void)
 					  "doesn't singlestep");
 				goto fail;
 			}
-			n = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_RET_OFFSET,
-				   os_getpid());
-			if (n < 0)
+			err = ptrace_set_syscall_ret(pid, os_getpid());
+			if (err < 0)
 				fatal_perror("check_sysemu : failed to modify "
 					     "system call return");
 			break;
@@ -197,7 +197,9 @@ fail:
 
 static void __init check_ptrace(void)
 {
-	int pid, syscall, n, status;
+	int pid, n, status;
+	long syscall;
+	int err;
 
 	os_info("Checking that ptrace can change system call numbers...");
 	pid = start_ptraced_child();
@@ -219,12 +221,13 @@ static void __init check_ptrace(void)
 			fatal("check_ptrace : expected (SIGTRAP|0x80), "
 			       "got status = %d", status);
 
-		syscall = ptrace(PTRACE_PEEKUSER, pid, PT_SYSCALL_NR_OFFSET,
-				 0);
+		err = ptrace_get_syscall_nr(pid, &syscall);
+		if (err < 0)
+			fatal_perror("check_ptrace : failed to read "
+				     "system call");
 		if (syscall == __NR_getpid) {
-			n = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
-				   __NR_getppid);
-			if (n < 0)
+			err = ptrace_set_syscall_nr(pid, __NR_getppid);
+			if (err < 0)
 				fatal_perror("check_ptrace : failed to modify "
 					     "system call");
 			break;
@@ -423,16 +426,7 @@ void  __init get_host_cpu_features(
 	}
 }
 
-/*
- * Arm64 UML must use seccomp mode — PTRACE_SYSEMU does not exist on arm64,
- * so the legacy ptrace-based userspace path cannot work. Default to "auto"
- * (try seccomp first, fall back to ptrace with a clear error if unavailable).
- */
-#ifdef __aarch64__
-static int seccomp_config __initdata = 1;
-#else
 static int seccomp_config __initdata;
-#endif
 
 static int __init uml_seccomp_config(char *line, int *add)
 {
@@ -492,16 +486,6 @@ void __init os_early_checks(void)
 		if (seccomp_config == 2)
 			fatal("SECCOMP userspace requested but not functional!\n");
 	}
-
-	/*
-	 * Arm64 UML requires seccomp mode — PTRACE_SYSEMU (used by the legacy
-	 * ptrace path) is an x86-only extension. If seccomp was tried and
-	 * failed, or was explicitly disabled, stop here with a clear message.
-	 */
-#ifdef __aarch64__
-	fatal("SECCOMP is required for arm64 UML (PTRACE_SYSEMU is x86-only).\n"
-	      "Ensure your kernel supports seccomp (CONFIG_SECCOMP_FILTER).\n");
-#endif
 
 	if (uml_ncpus > 1)
 		fatal("SMP is not supported with PTRACE userspace.\n");
