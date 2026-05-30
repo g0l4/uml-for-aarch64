@@ -56,16 +56,21 @@ static void *write_sigio_thread(void *unused)
 	return NULL;
 }
 
-int __add_sigio_fd(int fd)
+static int __add_sigio_fd_events(int fd, int events)
 {
 	struct epoll_event event = {
 		.data.fd = fd,
-		.events = EPOLLIN | EPOLLET,
+		.events = events | EPOLLET,
 	};
 	int r;
 
 	CATCH_EINTR(r = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event));
 	return r < 0 ? -errno : 0;
+}
+
+int __add_sigio_fd(int fd)
+{
+	return __add_sigio_fd_events(fd, EPOLLIN);
 }
 
 int add_sigio_fd(int fd)
@@ -99,19 +104,18 @@ int ignore_sigio_fd(int fd)
 	return err;
 }
 
-static void write_sigio_workaround(void)
+static void write_sigio_workaround_locked(void)
 {
 	int err;
 
-	sigio_lock();
 	if (write_sigio_td)
-		goto out;
+		return;
 
 	epollfd = epoll_create(MAX_EPOLL_EVENTS);
 	if (epollfd < 0) {
 		printk(UM_KERN_ERR "%s: epoll_create failed, errno = %d\n",
 		       __func__, errno);
-		goto out;
+		return;
 	}
 
 	err = os_run_helper_thread(&write_sigio_td, write_sigio_thread, NULL);
@@ -120,11 +124,29 @@ static void write_sigio_workaround(void)
 		       __func__, -err);
 		close(epollfd);
 		epollfd = -1;
-		goto out;
 	}
+}
 
-out:
+static void write_sigio_workaround(void)
+{
+	sigio_lock();
+	write_sigio_workaround_locked();
 	sigio_unlock();
+}
+
+static int add_sigio_workaround_fd(int fd, int events)
+{
+	int err;
+
+	sigio_lock();
+	write_sigio_workaround_locked();
+	if (!write_sigio_td)
+		err = -EIO;
+	else
+		err = __add_sigio_fd_events(fd, events);
+	sigio_unlock();
+
+	return err;
 }
 
 void sigio_broken(void)
@@ -132,18 +154,25 @@ void sigio_broken(void)
 	write_sigio_workaround();
 }
 
-/* Changed during early boot */
-static int pty_output_sigio;
-
-void maybe_sigio_broken(int fd)
+void maybe_sigio_broken(int fd, enum um_irq_type type)
 {
+	int events, flags, err;
+
 	if (!isatty(fd))
 		return;
 
-	if (pty_output_sigio)
+	if (type != IRQ_READ)
 		return;
 
-	sigio_broken();
+	events = EPOLLIN;
+	flags = fcntl(fd, F_GETFL);
+	if (flags >= 0 && (flags & O_ASYNC))
+		return;
+
+	err = add_sigio_workaround_fd(fd, events);
+	if (err && err != -EEXIST)
+		printk(UM_KERN_ERR "maybe_sigio_broken: failed to add fd %d "
+		       "to SIGIO workaround, err = %d\n", fd, -err);
 }
 
 static void sigio_cleanup(void)
@@ -279,7 +308,6 @@ static void tty_output(int master, int slave)
 
 	if (got_sigio) {
 		printk(UM_KERN_CONT "Yes\n");
-		pty_output_sigio = 1;
 	} else if (n == -EAGAIN)
 		printk(UM_KERN_CONT "No, enabling workaround\n");
 	else

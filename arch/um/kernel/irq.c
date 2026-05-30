@@ -304,6 +304,7 @@ static int activate_fd(int irq, int fd, enum um_irq_type type, void *dev_id,
 	struct irq_entry *irq_entry, *to_free = NULL;
 	int err, events = os_event_mask(type);
 	unsigned long flags;
+	bool check_sigio = false;
 
 	err = os_set_fd_async(fd);
 	if (err < 0)
@@ -340,7 +341,6 @@ already:
 		irq_entry = new;
 		irq_entry->fd = fd;
 		list_add_tail(&irq_entry->list, &active_fds);
-		maybe_sigio_broken(fd);
 	}
 
 	irq_entry->reg[type].id = dev_id;
@@ -356,11 +356,14 @@ already:
 #endif
 
 	WARN_ON(!update_irq_entry(irq_entry));
+	check_sigio = true;
 	err = 0;
 out_unlock:
 	raw_spin_unlock_irqrestore(&irq_lock, flags);
 out:
 	kfree(to_free);
+	if (!err && check_sigio)
+		maybe_sigio_broken(fd, type);
 	return err;
 }
 

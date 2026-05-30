@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <termios.h>
@@ -23,12 +24,29 @@ int generic_read(int fd, __u8 *c_out, void *unused)
 {
 	int n;
 
+	if (isatty(fd)) {
+		struct pollfd pfd = {
+			.fd = fd,
+			.events = POLLIN | POLLPRI,
+		};
+
+		CATCH_EINTR(n = poll(&pfd, 1, 0));
+		if (n < 0)
+			return -errno;
+		if (n == 0)
+			return 0;
+		if (pfd.revents & POLLNVAL)
+			return -EIO;
+		if (!(pfd.revents & (POLLIN | POLLPRI | POLLERR | POLLHUP)))
+			return 0;
+	}
+
 	CATCH_EINTR(n = read(fd, c_out, sizeof(*c_out)));
 	if (n > 0)
 		return n;
 	else if (n == 0)
 		return -EIO;
-	else if (errno == EAGAIN)
+	else if (errno == EAGAIN || errno == EWOULDBLOCK)
 		return 0;
 	return -errno;
 }

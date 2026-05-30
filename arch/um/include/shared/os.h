@@ -318,7 +318,7 @@ extern void um_irqs_resume(void);
 /* sigio.c */
 extern int add_sigio_fd(int fd);
 extern int ignore_sigio_fd(int fd);
-extern void maybe_sigio_broken(int fd);
+extern void maybe_sigio_broken(int fd, enum um_irq_type type);
 extern void sigio_broken(void);
 /*
  * unlocked versions for IRQ controller code.
