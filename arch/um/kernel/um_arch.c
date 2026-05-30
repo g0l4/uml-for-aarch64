@@ -338,10 +338,15 @@ int __init linux_main(int argc, char **argv, char **envp)
 		task_size = PTRS_PER_PGD * PGDIR_SIZE;
 
 	/*
-	 * TASK_SIZE needs to be PGDIR_SIZE aligned or else exit_mmap craps
-	 * out
+	 * Keep TASK_SIZE on a PGD boundary when there is more than one user PGD,
+	 * but don't round a single-PGD address space down to zero.  Some arm64
+	 * hosts, including Android phones with 39-bit userspace VA, expose a
+	 * host stack just below PGDIR_SIZE.
 	 */
-	task_size = task_size & PGDIR_MASK;
+	if (task_size >= PGDIR_SIZE)
+		task_size &= PGDIR_MASK;
+	else
+		task_size &= PAGE_MASK;
 
 	/* OS sanity checks that need to happen before the kernel runs */
 	os_early_checks();
