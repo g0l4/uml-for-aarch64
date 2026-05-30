@@ -31,6 +31,12 @@ typedef struct __jmp_buf jmp_buf[1];
 #define JB_IP __lr
 #define JB_SP __sp
 
+/*
+ * Unlike x86, AArch64 keeps the return address in LR rather than pushing it
+ * onto the stack, so a fabricated function entry SP must stay 16-byte aligned.
+ */
+#define JB_SP_ENTRY_OFFSET 0
+
 unsigned long get_thread_reg(int reg, jmp_buf *buf);
 
 #endif

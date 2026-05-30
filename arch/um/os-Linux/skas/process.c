@@ -36,6 +36,10 @@
 #include <asm-generic/rwonce.h>
 #include "../internal.h"
 
+#ifndef JB_SP_ENTRY_OFFSET
+#define JB_SP_ENTRY_OFFSET sizeof(void *)
+#endif
+
 int is_skas_winch(int pid, int fd, void *data)
 {
 	return pid == getpgrp();
@@ -827,7 +831,7 @@ void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
 {
 	(*buf)[0].JB_IP = (unsigned long) handler;
 	(*buf)[0].JB_SP = (unsigned long) stack + UM_THREAD_SIZE -
-		sizeof(void *);
+		JB_SP_ENTRY_OFFSET;
 }
 
 #define INIT_JMP_NEW_THREAD 0
@@ -868,7 +872,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	case INIT_JMP_NEW_THREAD:
 		(*switch_buf)[0].JB_IP = (unsigned long) uml_finishsetup;
 		(*switch_buf)[0].JB_SP = (unsigned long) stack +
-			UM_THREAD_SIZE - sizeof(void *);
+			UM_THREAD_SIZE - JB_SP_ENTRY_OFFSET;
 		break;
 	case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
