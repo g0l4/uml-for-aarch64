@@ -20,6 +20,7 @@
 #include <init.h>
 #include <kern.h>
 #include <os.h>
+#include <skas.h>
 #include <smp.h>
 
 enum {

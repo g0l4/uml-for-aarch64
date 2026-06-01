@@ -34,20 +34,7 @@ static inline void arch_copy_thread(struct arch_thread *from,
 
 #define STACKSLOTS_PER_LINE 4
 
-/* Arm64 uses yield for cpu_relax (no PAUSE instruction like x86) */
-static __always_inline void native_pause(void)
-{
-	asm volatile("yield" ::: "memory");
-}
-
-static __always_inline void cpu_relax(void)
-{
-	if (time_travel_mode == TT_MODE_INFCPU ||
-	    time_travel_mode == TT_MODE_EXTERNAL)
-		time_travel_ndelay(1);
-	else
-		native_pause();
-}
+#include <asm/barrier.h>
 
 #define current_sp() ({ void *sp; asm("mov %0, sp" : "=r" (sp)); sp; })
 #define current_bp() ({ unsigned long bp; asm("mov %0, x29" : "=r" (bp)); bp; })
