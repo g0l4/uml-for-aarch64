@@ -197,7 +197,8 @@ extern int create_mem_file(unsigned long long len);
 extern void report_enomem(void);
 
 /* process.c */
-pid_t os_reap_child(void);
+pid_t os_reap_child(int *status);
+void os_print_child_status(pid_t pid, int status);
 extern void os_alarm_process(int pid);
 extern void os_kill_process(int pid, int reap_child);
 extern void os_kill_ptraced_process(int pid, int reap_child);

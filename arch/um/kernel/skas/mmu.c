@@ -115,10 +115,11 @@ static irqreturn_t mm_sigchld_irq(int irq, void* dev)
 {
 	struct mm_context *mm_context;
 	pid_t pid;
+	int status;
 
 	guard(spinlock)(&mm_list_lock);
 
-	while ((pid = os_reap_child()) > 0) {
+	while ((pid = os_reap_child(&status)) > 0) {
 		/*
 		* A child died, check if we have an MM with the PID. This is
 		* only relevant in SECCOMP mode (as ptrace will fail anyway).
@@ -128,6 +129,7 @@ static irqreturn_t mm_sigchld_irq(int irq, void* dev)
 		list_for_each_entry(mm_context, &mm_list, list) {
 			if (mm_context->id.pid == pid) {
 				struct stub_data *stub_data;
+				os_print_child_status(pid, status);
 				printk("Unexpectedly lost MM child! Affected tasks will segfault.");
 
 				/* Marks the MM as dead */
