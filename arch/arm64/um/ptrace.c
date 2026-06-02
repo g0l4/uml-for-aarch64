@@ -108,11 +108,46 @@ long subarch_ptrace(struct task_struct *child, long request,
 
 unsigned long elf_hwcap;
 
+enum arm64_um_regset {
+	REGSET_GPR,
+};
+
+static int gpr_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   struct membuf to)
+{
+	struct uml_pt_regs *regs = &task_pt_regs(target)->regs;
+
+	return membuf_write(&to, regs->gp, ELF_NGREG * sizeof(elf_greg_t));
+}
+
+static int gpr_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	struct uml_pt_regs *regs = &task_pt_regs(target)->regs;
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs->gp,
+				  0, ELF_NGREG * sizeof(elf_greg_t));
+}
+
+static const struct user_regset arm64_um_regsets[] = {
+	[REGSET_GPR] = {
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
+		.n		= ELF_NGREG,
+		.size		= sizeof(elf_greg_t),
+		.align		= sizeof(elf_greg_t),
+		.regset_get	= gpr_get,
+		.set		= gpr_set,
+	},
+};
+
 static const struct user_regset_view arm64_um_regset_view = {
 	.name = "aarch64",
 	.e_machine = EM_AARCH64,
-	.regsets = NULL,
-	.n = 0,
+	.regsets = arm64_um_regsets,
+	.n = ARRAY_SIZE(arm64_um_regsets),
 };
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)

@@ -285,7 +285,8 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 
 static void handle_trap(struct uml_pt_regs *regs)
 {
-	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
+	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END) &&
+	    PT_SYSCALL_NR(regs->gp) != __NR_rt_sigreturn)
 		fatal_sigsegv();
 
 	handle_syscall(regs);

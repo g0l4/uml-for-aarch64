@@ -14,6 +14,7 @@ config UML_ARM64
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if !COMPAT
 	select HAVE_ARCH_MMAP_RND_BITS
 	select GENERIC_CSUM
+	select CLONE_BACKWARDS
 
 # Arm64 UML is always 64-bit
 config 64BIT

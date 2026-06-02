@@ -4,8 +4,9 @@
 
 #include <asm/elf.h>
 
+#define CORE_DUMP_USE_REGSET
+
 #define ELF_CORE_EFLAGS 0
-#define ELF_CORE_WRITE_XFPREGS 1
 
 #define ELF_EXEC_PAGESIZE 4096
 #define ELF_ET_DYN_BASE (2 * TASK_SIZE / 3)
@@ -16,6 +17,14 @@
 #define ELF_NGREG 34	/* 31 GPRs + SP + PC + PSTATE */
 typedef unsigned long elf_greg_t;
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
+
+#define ELF_CORE_COPY_REGS(pr_reg, regs)				\
+	do {								\
+		int __i;						\
+									\
+		for (__i = 0; __i < ELF_NGREG; __i++)			\
+			(pr_reg)[__i] = (regs)->regs.gp[__i];		\
+	} while (0);
 
 #define ELF_NFPREG 34	/* 32 V-regs + FPSR + FPCR, each 16 bytes, but count as 34 longs for compat */
 typedef unsigned long elf_fpreg_t;

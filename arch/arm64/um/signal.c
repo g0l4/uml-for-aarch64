@@ -11,6 +11,10 @@
 #include <skas.h>
 #include <linux/regset.h>
 #include <asm/sigcontext.h>
+#include <as-layout.h>
+#include <asm/sections.h>
+
+extern void stub_signal_restorer(void);
 
 /*
  * Arm64 signal frame layout.
@@ -51,10 +55,9 @@ struct rt_sigframe {
  * Compute the full signal frame size including all record allocations.
  * Returns the total size needed before the sigframe on the stack.
  */
-static unsigned long sigframe_size(struct rt_sigframe __user *frame,
-				    unsigned long fp_size)
+static unsigned long sigframe_size(void)
 {
-	return round_up(sizeof(*frame), 16);
+	return round_up(sizeof(struct rt_sigframe), 16);
 }
 
 static int copy_sc_from_user(struct pt_regs *regs,
@@ -111,19 +114,28 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 			  struct pt_regs *regs, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
+	unsigned long __user *frame_record;
 	int err = 0, sig = ksig->sig;
-	unsigned long fp_to;
+	unsigned long frame_record_addr;
+	unsigned long sigtramp;
+	unsigned long old_fp, old_lr;
 
-	frame = (struct rt_sigframe __user *)stack_top - 1;
+	frame_record_addr = round_down(stack_top - 2 * sizeof(unsigned long), 16);
+	frame_record = (unsigned long __user *)frame_record_addr;
 
 	/*
 	 * Arm64 requires 16-byte SP alignment at public interfaces.
 	 * The signal frame itself is 16-byte aligned through struct layout.
 	 */
-	frame = (struct rt_sigframe __user *)round_down((unsigned long)frame, 16);
+	frame = (struct rt_sigframe __user *)
+		round_down(frame_record_addr - sigframe_size(), 16);
 
-	if (!access_ok(frame, sizeof(*frame)))
+	if (!access_ok(frame, frame_record_addr + 2 * sizeof(unsigned long) -
+		       (unsigned long)frame))
 		goto out;
+
+	old_fp = UPT_X29(&regs->regs);
+	old_lr = UPT_X30(&regs->regs);
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
 		err |= copy_siginfo_to_user(&frame->info, &ksig->info);
@@ -140,6 +152,8 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 			       set->sig[0]);
 
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+	err |= __put_user(old_fp, &frame_record[0]);
+	err |= __put_user(old_lr, &frame_record[1]);
 
 	if (err)
 		return err;
@@ -149,15 +163,14 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	 * trampoline provided by userspace that calls rt_sigreturn.
 	 */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
-		err |= __put_user((void __user *)ksig->ka.sa.sa_restorer,
-				  &frame->uc.uc_link);
+		sigtramp = (unsigned long)ksig->ka.sa.sa_restorer;
 	else
-		return err;
-
-	if (err)
-		return err;
+		sigtramp = STUB_CODE + (unsigned long)stub_signal_restorer -
+			   (unsigned long)__syscall_stub_start;
 
 	PT_REGS_SP(regs) = (unsigned long)frame;
+	UPT_X29(&regs->regs) = frame_record_addr;
+	UPT_X30(&regs->regs) = sigtramp;
 
 	/* A64 calling convention: x0 = signal number */
 	UPT_X0(&regs->regs) = sig;
