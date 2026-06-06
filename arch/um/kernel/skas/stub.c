@@ -8,6 +8,7 @@
 #include <linux/futex.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <stddef.h>
 
 /*
  * Known security issues

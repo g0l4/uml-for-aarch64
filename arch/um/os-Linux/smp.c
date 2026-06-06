@@ -7,6 +7,9 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #include <kern_util.h>
 #include <um_malloc.h>
 #include <init.h>
@@ -27,12 +30,15 @@ int uml_curr_cpu(void)
 }
 
 static pthread_t cpu_threads[CONFIG_NR_CPUS];
+static int cpu_tids[CONFIG_NR_CPUS];
+static int tgid;
 
 static void *cpu_thread(void *arg)
 {
 	struct cpu_thread_data *data = arg;
 
 	__curr_cpu = data->cpu;
+	cpu_tids[data->cpu] = syscall(SYS_gettid);
 
 	uml_start_secondary(data);
 
@@ -91,9 +97,17 @@ void os_start_secondary(void *arg, jmp_buf *switch_buf)
 
 int os_send_ipi(int cpu, int vector)
 {
-	union sigval value = { .sival_int = vector };
+	siginfo_t info;
 
-	return pthread_sigqueue(cpu_threads[cpu], IPI_SIGNAL, value);
+	memset(&info, 0, sizeof(info));
+	info.si_signo = IPI_SIGNAL;
+	info.si_code = SI_QUEUE;
+	info.si_pid = tgid;
+	info.si_uid = getuid();
+	info.si_value.sival_int = vector;
+
+	return syscall(SYS_rt_tgsigqueueinfo, tgid, cpu_tids[cpu],
+		       IPI_SIGNAL, &info);
 }
 
 static void __local_ipi_set(int enable)
@@ -144,5 +158,7 @@ void __init os_init_smp(void)
 	if (sigaction(IPI_SIGNAL, &action, NULL) < 0)
 		panic("%s: sigaction failed, errno = %d", __func__, errno);
 
+	tgid = os_getpid();
 	cpu_threads[0] = pthread_self();
+	cpu_tids[0] = syscall(SYS_gettid);
 }

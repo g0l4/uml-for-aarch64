@@ -2,9 +2,34 @@
 #ifndef __SYS_SIGCONTEXT_ARM64_H
 #define __SYS_SIGCONTEXT_ARM64_H
 
-#include <asm/sigcontext.h>
+#include <sys/ucontext.h>
 #include <stub-data.h>
 #include <sysdep/faultinfo.h>
+
+#ifndef FPSIMD_MAGIC
+#define FPSIMD_MAGIC	0x46508001
+#endif
+
+#ifndef ESR_MAGIC
+#define ESR_MAGIC	0x45535201
+#endif
+
+struct uml_aarch64_ctx {
+	unsigned int magic;
+	unsigned int size;
+};
+
+struct uml_aarch64_esr_context {
+	struct uml_aarch64_ctx head;
+	unsigned long esr;
+};
+
+struct uml_aarch64_fpsimd_context {
+	struct uml_aarch64_ctx head;
+	unsigned int fpsr;
+	unsigned int fpcr;
+	__uint128_t vregs[32];
+};
 
 extern void get_regs_from_mc(struct uml_pt_regs *, mcontext_t *);
 extern void get_mc_from_regs(struct uml_pt_regs *regs, mcontext_t *mc,
@@ -17,7 +42,7 @@ extern int set_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
 
 static inline unsigned long get_esr_from_mc(mcontext_t *mc)
 {
-	struct _aarch64_ctx *ctx = (struct _aarch64_ctx *)mc->__reserved;
+	struct uml_aarch64_ctx *ctx = (struct uml_aarch64_ctx *)mc->__reserved;
 	unsigned long offset = 0;
 
 	while (offset + sizeof(*ctx) <= sizeof(mc->__reserved)) {
@@ -27,11 +52,11 @@ static inline unsigned long get_esr_from_mc(mcontext_t *mc)
 		    ctx->size > sizeof(mc->__reserved) - offset)
 			break;
 		if (ctx->magic == ESR_MAGIC &&
-		    ctx->size >= sizeof(struct esr_context))
-			return ((struct esr_context *)ctx)->esr;
+		    ctx->size >= sizeof(struct uml_aarch64_esr_context))
+			return ((struct uml_aarch64_esr_context *)ctx)->esr;
 
 		offset += ctx->size;
-		ctx = (struct _aarch64_ctx *)((char *)ctx + ctx->size);
+		ctx = (struct uml_aarch64_ctx *)((char *)ctx + ctx->size);
 	}
 
 	return 0;

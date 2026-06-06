@@ -18,7 +18,74 @@
 #include "hostfs.h"
 #include <utime.h>
 
-static void statx_to_hostfs(const struct statx *buf, struct hostfs_stat *p)
+#define HOSTFS_STATX_BASIC_STATS	0x000007ffU
+#define HOSTFS_STATX_BTIME		0x00000800U
+
+#ifndef SYS_statx
+# ifdef __NR_statx
+#  define SYS_statx __NR_statx
+# elif defined(__x86_64__)
+#  define SYS_statx 332
+# elif defined(__i386__)
+#  define SYS_statx 383
+# elif defined(__aarch64__)
+#  define SYS_statx 291
+# endif
+#endif
+
+struct hostfs_statx_timestamp {
+	long long tv_sec;
+	unsigned int tv_nsec;
+	int __reserved;
+};
+
+struct hostfs_statx {
+	unsigned int stx_mask;
+	unsigned int stx_blksize;
+	unsigned long long stx_attributes;
+	unsigned int stx_nlink;
+	unsigned int stx_uid;
+	unsigned int stx_gid;
+	unsigned short stx_mode;
+	unsigned short __spare0[1];
+	unsigned long long stx_ino;
+	unsigned long long stx_size;
+	unsigned long long stx_blocks;
+	unsigned long long stx_attributes_mask;
+	struct hostfs_statx_timestamp stx_atime;
+	struct hostfs_statx_timestamp stx_btime;
+	struct hostfs_statx_timestamp stx_ctime;
+	struct hostfs_statx_timestamp stx_mtime;
+	unsigned int stx_rdev_major;
+	unsigned int stx_rdev_minor;
+	unsigned int stx_dev_major;
+	unsigned int stx_dev_minor;
+	unsigned long long stx_mnt_id;
+	unsigned int stx_dio_mem_align;
+	unsigned int stx_dio_offset_align;
+	unsigned long long stx_subvol;
+	unsigned int stx_atomic_write_unit_min;
+	unsigned int stx_atomic_write_unit_max;
+	unsigned int stx_atomic_write_segments_max;
+	unsigned int stx_dio_read_offset_align;
+	unsigned int stx_atomic_write_unit_max_opt;
+	unsigned int __spare2[1];
+	unsigned long long __spare3[8];
+};
+
+static int hostfs_statx(int fd, const char *path, int flags, unsigned int mask,
+			struct hostfs_statx *buf)
+{
+#ifdef SYS_statx
+	return syscall(SYS_statx, fd, path, flags, mask, buf);
+#else
+	errno = ENOSYS;
+	return -1;
+#endif
+}
+
+static void statx_to_hostfs(const struct hostfs_statx *buf,
+			    struct hostfs_stat *p)
 {
 	p->ino = buf->stx_ino;
 	p->mode = buf->stx_mode;
@@ -32,7 +99,7 @@ static void statx_to_hostfs(const struct statx *buf, struct hostfs_stat *p)
 	p->ctime.tv_nsec = buf->stx_ctime.tv_nsec;
 	p->mtime.tv_sec = buf->stx_mtime.tv_sec;
 	p->mtime.tv_nsec = buf->stx_mtime.tv_nsec;
-	if (buf->stx_mask & STATX_BTIME) {
+	if (buf->stx_mask & HOSTFS_STATX_BTIME) {
 		p->btime.tv_sec = buf->stx_btime.tv_sec;
 		p->btime.tv_nsec = buf->stx_btime.tv_nsec;
 	} else {
@@ -48,7 +115,7 @@ static void statx_to_hostfs(const struct statx *buf, struct hostfs_stat *p)
 
 int stat_file(const char *path, struct hostfs_stat *p, int fd)
 {
-	struct statx buf;
+	struct hostfs_statx buf;
 	int flags = AT_SYMLINK_NOFOLLOW;
 
 	if (fd >= 0) {
@@ -56,7 +123,9 @@ int stat_file(const char *path, struct hostfs_stat *p, int fd)
 		path = "";
 	}
 
-	if ((statx(fd, path, flags, STATX_BASIC_STATS | STATX_BTIME, &buf)) < 0)
+	if (hostfs_statx(fd, path, flags,
+			 HOSTFS_STATX_BASIC_STATS | HOSTFS_STATX_BTIME,
+			 &buf) < 0)
 		return -errno;
 
 	statx_to_hostfs(&buf, p);

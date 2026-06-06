@@ -4,7 +4,6 @@
 #include <linux/string.h>
 #include <sys/ucontext.h>
 #include <asm/ptrace.h>
-#include <asm/sigcontext.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/mcontext.h>
 #include <arch.h>
@@ -54,29 +53,30 @@ void get_mc_from_regs(struct uml_pt_regs *regs, mcontext_t *mc,
  * Parse the fpsimd_context from the sigcontext __reserved[] area
  * to determine the FP state size. Returns NULL if no valid state found.
  */
-static struct fpsimd_context *get_fpstate(struct stub_data *data,
-					  mcontext_t *mcontext,
-					  int *fp_size)
+static struct uml_aarch64_fpsimd_context *get_fpstate(struct stub_data *data,
+						      mcontext_t *mcontext,
+						      int *fp_size)
 {
-	struct _aarch64_ctx *ctx;
+	struct uml_aarch64_ctx *ctx;
 	unsigned long offset = 0;
 
-	ctx = (struct _aarch64_ctx *)mcontext->__reserved;
+	ctx = (struct uml_aarch64_ctx *)mcontext->__reserved;
 
 	while (offset < sizeof(mcontext->__reserved)) {
 		if (ctx->magic == 0 || ctx->size == 0)
 			break;
 
-		if (ctx->magic == FPSIMD_MAGIC && ctx->size >= sizeof(struct fpsimd_context)) {
+		if (ctx->magic == FPSIMD_MAGIC &&
+		    ctx->size >= sizeof(struct uml_aarch64_fpsimd_context)) {
 			*fp_size = ctx->size;
-			return (struct fpsimd_context *)ctx;
+			return (struct uml_aarch64_fpsimd_context *)ctx;
 		}
 
 		if (ctx->size < sizeof(*ctx))
 			break;
 
 		offset += ctx->size;
-		ctx = (struct _aarch64_ctx *)((char *)ctx + ctx->size);
+		ctx = (struct uml_aarch64_ctx *)((char *)ctx + ctx->size);
 	}
 
 	/* Default: no FP context */
@@ -88,7 +88,7 @@ int get_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
 		   unsigned long *fp_size_out)
 {
 	mcontext_t *mcontext;
-	struct fpsimd_context *fpstate_stub;
+	struct uml_aarch64_fpsimd_context *fpstate_stub;
 	int fp_size;
 
 	mcontext = (void *)&data->sigstack[data->mctx_offset];
@@ -118,7 +118,7 @@ int set_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
 		   int single_stepping)
 {
 	mcontext_t *mcontext;
-	struct fpsimd_context *fpstate_stub;
+	struct uml_aarch64_fpsimd_context *fpstate_stub;
 	int fp_size;
 
 	mcontext = (void *)&data->sigstack[data->mctx_offset];
