@@ -22,6 +22,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
+#include <linux/string.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
 #include <linux/resume_user_mode.h>
@@ -154,8 +155,11 @@ int copy_thread(struct task_struct * p, const struct kernel_clone_args *args)
 	p->thread = (struct thread_struct) INIT_THREAD;
 
 	if (!args->fn) {
-		memcpy(&p->thread.regs, current_pt_regs(),
-		       sizeof(p->thread.regs) + host_fp_size);
+		unsafe_memcpy(&p->thread.regs, current_pt_regs(),
+			      sizeof(p->thread.regs) + host_fp_size,
+			      "thread is task_struct's last member and regs is "
+			      "thread's last member; task_struct is allocated "
+			      "with extra space for regs.fp");
 		PT_REGS_SET_SYSCALL_RETURN(&p->thread.regs, 0);
 		if (sp != 0)
 			REGS_SP(p->thread.regs.regs.gp) = sp;
